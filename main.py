@@ -40,27 +40,45 @@ async def end_of_call(request: Request):
     payload = await request.json()
     print("Webhook Payload Received:", payload)
 
-    # Respond to the webhook request
+    booking = None
+    booking_info = 'No info'
+    call_status = payload.get('call_status', '')
+    error_message = payload.get('error_message')
+
+    tools_calling = payload.get('function_calls', [])
+    for tool in tools_calling:
+        if tool.get('name') == 'book_meeting_slot':
+            result = tool.get('result', '')
+            if 'Failed' in result:
+                booking = 'Failed'
+            else:
+                booking = 'Success'
+            booking_info = result
+
+    engagement = 'ToBeFilled'
+
+    tags = []
+    if booking == 'Success':
+        tags.append('MILLIS_MEETING')
+    else:
+        tags.append('MILLIS_MEETING_FAILED')
+    tags.append(f'MILLIS_{call_status.upper()}')
+
+    email = payload.get('metadata', {}).get('email', None)
+    print(f'tags = {tags}, email = {email}')
+    update_tag_salesmanago(email, tags)
+
     return {
-        "message": "End-of-call webhook processed successfully!",
-        "received_payload": payload
+        "received_payload": payload,
+        "stats": {
+            "booking": booking,
+            "booking_info": booking_info,
+            "engagement": engagement,
+            "call_status": call_status,
+            "error_message": error_message,
+            "recording_url": payload.get('recording', {}).get('recording_url', '')
+        }
     }
-
-
-# This should do call analysis and return a report that will further be sent to CRM for next steps + DB for investigation
-@app.post("/call_analysis")
-async def call_analysis(request: Request):
-    # Parse the incoming JSON payload
-    payload = await request.json()
-    print("Webhook Payload Received:", payload)
-
-    # TODO: I might do Openai Call analysis here
-    # Respond to the webhook request
-    return {
-        "message": "End-of-call-analysis webhook processed successfully!",
-        "received_payload": payload
-    }
-
 
 def get_contact_name(contact_email):
     request_time = int(time.time() * 1000)
@@ -94,7 +112,7 @@ def get_contact_name(contact_email):
         package = result.get('package')
 
         return {
-            "FirstName": name,
+            "Name": name,
             "CompanyName": data.get('company'),
             "traffic": traffic,
             "keywords": keywords,
@@ -141,3 +159,38 @@ async def api_input(payload: SalesmanagoPayload):
         raise HTTPException(status_code=500, detail=f"Failed to initiate call: {e}")
 
     return {"message": "Call initiated successfully."}
+
+
+def update_tag_salesmanago(email, tags):
+    url = "https://app3.salesmanago.pl/api/contact/batchupsertv2"
+
+    payload = {
+        "clientId": os.getenv('CLIENT_ID'),
+        "apiKey": os.getenv('API_KEY'),
+        "requestTime": int(time.time()),  # Current Unix timestamp
+        "sha": os.getenv('sha'),
+        'owner': os.getenv('OWNER_EMAIL'),
+        "upsertDetails": [
+            {
+                "contact": {
+                    "email": email,
+                    },
+                "tags": tags
+            }
+        ],
+    }
+
+    try:
+        # Send the POST request
+        response = requests.post(url, json=payload)
+
+        # Check for successful response
+        if response.status_code == 200:
+            print("Request was successful!")
+            print("Response:", response.json())
+        else:
+            print(f"Failed with status code: {response.status_code}")
+            print("Response content:", response.text)
+
+    except requests.exceptions.RequestException as e:
+        print("An error occurred:", e)
