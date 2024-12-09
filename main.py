@@ -19,7 +19,13 @@ class SalesmanagoPayload(BaseModel):
     company: str
 
 
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi import FastAPI
+
 app = FastAPI()
+
+# Allow specific domains
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 
 # Prefetch Data Webhook (GET request)
