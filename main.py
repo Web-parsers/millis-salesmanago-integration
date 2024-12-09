@@ -28,6 +28,11 @@ app = FastAPI()
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 
+@app.get("/")
+async def read_root():
+    return {"message": "Welcome to the API"}
+
+
 # Prefetch Data Webhook (GET request)
 @app.get("/prefetch_data_webhook")
 async def prefetch_data():
