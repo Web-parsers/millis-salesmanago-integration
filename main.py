@@ -55,7 +55,7 @@ def insert(text, api_name):
             "data": [
                 {
                     "column_name": "responses",
-                    "column_data": text
+                    "column_data": str(text)
                 },
                 {
                     "column_name": "api_name",
@@ -176,7 +176,7 @@ async def api_input(payload: SalesmanagoPayload):
     if not payload.phone:
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
-    insert(payload.__dict__, api_name='api_input')
+    insert(json.dumps(payload.__dict__), api_name='api_input')
     metadata = get_contact_name(payload.email)
     millis_data = {
         "from_phone": os.getenv('phone_from'),
