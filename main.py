@@ -51,7 +51,7 @@ def insert(text, api_name):
     try:
         url_insert = f"{os.getenv('server_url')}/insert-data"
         payload_insert = json.dumps({
-            "table_name": "millis_raw_response",
+            "table_name": "millis_raw_response2",
             "data": [
                 {
                     "column_name": "responses",
@@ -176,7 +176,7 @@ async def api_input(payload: SalesmanagoPayload):
     if not payload.phone:
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
-    insert(payload, api_name='api_input')
+    insert(payload.__dict__, api_name='api_input')
     metadata = get_contact_name(payload.email)
     millis_data = {
         "from_phone": os.getenv('phone_from'),
