@@ -1,6 +1,9 @@
 import hashlib
+import json
 import os
 import time
+import traceback
+
 from fastapi import FastAPI, Request, HTTPException
 import requests
 from pydantic import BaseModel
@@ -44,12 +47,42 @@ async def prefetch_data():
     }
 
 
+def insert(text, api_name):
+    try:
+        url_insert = f"{os.getenv('server_url')}/insert-data"
+        payload_insert = json.dumps({
+            "table_name": "millis_raw_response",
+            "data": [
+                {
+                    "column_name": "responses",
+                    "column_data": text
+                },
+                {
+                    "column_name": "api_name",
+                    "column_data": api_name
+                }
+            ]
+        })
+        headers_insert = {
+            'accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+
+        response_insert = requests.request("POST", url_insert, headers=headers_insert, data=payload_insert)
+        print(f'response_insert.text = {response_insert.text}')
+    except:
+        print(traceback.format_exc())
+        print(f'Failed to store into DB')
+
+
 # End-of-Call Webhook (POST request)
 @app.post("/session_data_webhook")
 async def end_of_call(request: Request):
     # Parse the incoming JSON payload
     payload = await request.json()
     print("Webhook Payload Received:", payload)
+
+    insert(json.dumps(payload), api_name='end_of_call')
 
     booking = None
     booking_info = 'No info'
@@ -79,7 +112,7 @@ async def end_of_call(request: Request):
     print(f'tags = {tags}, email = {email}')
     update_tag_salesmanago(email, tags)
 
-    return {
+    result = {
         "received_payload": payload,
         "stats": {
             "booking": booking,
@@ -90,6 +123,9 @@ async def end_of_call(request: Request):
             "recording_url": payload.get('recording', {}).get('recording_url', '')
         }
     }
+    insert(json.dumps(result), api_name='end_of_call_structured')
+    return result
+
 
 def get_contact_name(contact_email):
     request_time = int(time.time() * 1000)
@@ -140,8 +176,8 @@ async def api_input(payload: SalesmanagoPayload):
     if not payload.phone:
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
+    insert(payload, api_name='api_input')
     metadata = get_contact_name(payload.email)
-
     millis_data = {
         "from_phone": os.getenv('phone_from'),
         "to_phone": payload.phone,
@@ -155,6 +191,7 @@ async def api_input(payload: SalesmanagoPayload):
     }
     millis_data['metadata'] |= metadata
     print(millis_data)
+    insert(json.dumps(millis_data), api_name='millis_data')
 
     try:
         response = requests.post(
@@ -166,7 +203,10 @@ async def api_input(payload: SalesmanagoPayload):
             }
         )
         response.raise_for_status()
+        update_tag_salesmanago(payload.email, ['MILLIS_CALLING'])
     except requests.RequestException as e:
+        print(traceback.format_exc())
+        update_tag_salesmanago(payload.email, ['MILLIS_FAILED_TO_CALL'])
         raise HTTPException(status_code=500, detail=f"Failed to initiate call: {e}")
 
     return {"message": "Call initiated successfully."}
@@ -185,7 +225,7 @@ def update_tag_salesmanago(email, tags):
             {
                 "contact": {
                     "email": email,
-                    },
+                },
                 "tags": tags
             }
         ],
