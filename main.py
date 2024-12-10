@@ -165,7 +165,7 @@ def get_contact_name(contact_email):
             "traffic": traffic,
             "keywords": keywords,
             "package": package,
-            "tags": [x.get('tag') for x in data.get(['contactTags'], [])]
+            "tags": [x.get('tag') for x in data.get('contactTags', [])]
         }
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve contact details: {e}")
