@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import json
 import os
@@ -101,11 +102,11 @@ async def end_of_call(request: Request):
 
     engagement = 'ToBeFilled'
 
-    tags = []
+    tags = ['SEOSENSE_TALKED']
     if booking == 'Success':
-        tags.append('MILLIS_MEETING')
+        tags.append('SEOSENSE_MEETING')
     else:
-        tags.append('MILLIS_MEETING_FAILED')
+        tags.append('SEOSENSE_MEETING_FAILED')
     tags.append(f'MILLIS_{call_status.upper()}')
 
     email = payload.get('metadata', {}).get('email', None)
@@ -163,7 +164,8 @@ def get_contact_name(contact_email):
             "CompanyName": data.get('company'),
             "traffic": traffic,
             "keywords": keywords,
-            "package": package
+            "package": package,
+            "tags": [x.get('tag') for x in data.get(['contactTags'], [])]
         }
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve contact details: {e}")
@@ -178,6 +180,7 @@ async def api_input(payload: SalesmanagoPayload):
 
     insert(json.dumps(payload.__dict__), api_name='api_input')
     metadata = get_contact_name(payload.email)
+    tags = metadata.get('tags', [])
     millis_data = {
         "from_phone": os.getenv('phone_from'),
         "to_phone": payload.phone,
@@ -193,6 +196,14 @@ async def api_input(payload: SalesmanagoPayload):
     print(millis_data)
     insert(json.dumps(millis_data), api_name='millis_data')
 
+    num = 1
+    potential_failure_tag = f'SEOSENSE_MILLIS_FAILED_TO_CALL_{num}'
+    while potential_failure_tag in tags:
+        num += 1
+        potential_failure_tag = f'SEOSENSE_MILLIS_FAILED_TO_CALL_{num}'
+    if num == 5:
+        potential_failure_tag = 'SEOSENSE_NOT_ANSWERED'
+
     try:
         response = requests.post(
             "https://api-west.millis.ai/start_outbound_call",
@@ -203,10 +214,31 @@ async def api_input(payload: SalesmanagoPayload):
             }
         )
         response.raise_for_status()
-        update_tag_salesmanago(payload.email, ['MILLIS_CALLING'])
+        update_tag_salesmanago(payload.email, ['SEOSENSE_MILLIS_CALLING'])
+
+        try:
+            await asyncio.sleep(60)
+            session_id = response.json().get('session_id')
+            response_get_status = requests.get(
+                f"https://api-west.millis.ai/call-logs/{session_id}",
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": os.getenv('api_key')
+                }
+            )
+            response_get_status.raise_for_status()
+            call_status = response_get_status.json().get('call_status')
+            if call_status != 'user-ended': # e.g. busy, no_answer
+                update_tag_salesmanago(payload.email, [potential_failure_tag])
+            else:
+                update_tag_salesmanago(payload.email, ['SEOSENSE_TALKED'])
+        except:
+            print(traceback.format_exc())
+            update_tag_salesmanago(payload.email, [potential_failure_tag])
+            print(f'Failed to get call by session_id')
     except requests.RequestException as e:
         print(traceback.format_exc())
-        update_tag_salesmanago(payload.email, ['MILLIS_FAILED_TO_CALL'])
+        update_tag_salesmanago(payload.email, [potential_failure_tag])
         raise HTTPException(status_code=500, detail=f"Failed to initiate call: {e}")
 
     return {"message": "Call initiated successfully."}
