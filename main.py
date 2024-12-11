@@ -52,11 +52,11 @@ def insert(text, api_name):
     try:
         url_insert = f"{os.getenv('server_url')}/insert-data"
         payload_insert = json.dumps({
-            "table_name": "millis_raw_response2",
+            "table_name": "millis_responses_poc",
             "data": [
                 {
                     "column_name": "responses",
-                    "column_data": str(text)
+                    "column_data": text
                 },
                 {
                     "column_name": "api_name",
