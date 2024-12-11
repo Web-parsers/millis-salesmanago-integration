@@ -83,7 +83,7 @@ async def end_of_call(request: Request):
     payload = await request.json()
     print("Webhook Payload Received:", payload)
 
-    insert(json.dumps(payload), api_name='end_of_call')
+    insert(payload, api_name='end_of_call')
 
     booking = None
     booking_info = 'No info'
@@ -124,7 +124,7 @@ async def end_of_call(request: Request):
             "recording_url": payload.get('recording', {}).get('recording_url', '')
         }
     }
-    insert(json.dumps(result), api_name='end_of_call_structured')
+    insert(result, api_name='end_of_call_structured')
     return result
 
 
@@ -178,7 +178,7 @@ async def api_input(payload: SalesmanagoPayload):
     if not payload.phone:
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
-    insert(json.dumps(payload.__dict__), api_name='api_input')
+    insert(payload.__dict__, api_name='api_input')
     metadata = get_contact_name(payload.email)
     tags = metadata.get('tags', [])
     millis_data = {
@@ -194,7 +194,7 @@ async def api_input(payload: SalesmanagoPayload):
     }
     millis_data['metadata'] |= metadata
     print(millis_data)
-    insert(json.dumps(millis_data), api_name='millis_data')
+    insert(millis_data, api_name='millis_data')
 
     num = 1
     potential_failure_tag = f'SEOSENSE_MILLIS_FAILED_TO_CALL_{num}'
