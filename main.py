@@ -12,6 +12,12 @@ from dotenv import load_dotenv
 
 load_dotenv()  # take environment variables from .env.
 
+agents_per_country = {
+    'UK': os.getenv('agent_id_UK'),
+    'GB': os.getenv('agent_id_UK'),
+    'US': os.getenv('agent_id_US')
+}
+
 
 class SalesmanagoPayload(BaseModel):
     id: str
@@ -181,10 +187,16 @@ async def api_input(payload: SalesmanagoPayload):
     insert(payload.__dict__, api_name='api_input')
     metadata = get_contact_name(payload.email)
     tags = metadata.get('tags', [])
+    if 'SEOSENSE_US' in tags:
+        agent = agents_per_country['US']
+    elif 'SEOSENSE_UK' in tags or 'SEOSENSE_GB' in tags:
+        agent = agents_per_country['UK']
+    else:
+        return {"message": f"No UK and no US, tags: {tags}"}
     millis_data = {
         "from_phone": os.getenv('phone_from'),
         "to_phone": payload.phone,
-        "agent_id": os.getenv('agent_id'),
+        "agent_id": agent,
         "metadata": {
             "email": payload.email,
             "EmailAddress": payload.email,
