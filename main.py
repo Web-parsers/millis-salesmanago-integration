@@ -18,6 +18,12 @@ agents_per_country = {
     'US': os.getenv('agent_id_US')
 }
 
+phone_from_country = {
+    'UK': os.getenv('phone_from_UK'),
+    'GB': os.getenv('phone_from_UK'),
+    'US': os.getenv('phone_from_US')
+}
+
 
 class SalesmanagoPayload(BaseModel):
     id: str
@@ -189,12 +195,14 @@ async def api_input(payload: SalesmanagoPayload):
     tags = metadata.get('tags', [])
     if 'SEOSENSE_US' in tags:
         agent = agents_per_country['US']
+        phone_from = phone_from_country['US']
     elif 'SEOSENSE_UK' in tags or 'SEOSENSE_GB' in tags:
         agent = agents_per_country['UK']
+        phone_from = phone_from_country['UK']
     else:
         return {"message": f"No UK and no US, tags: {tags}"}
     millis_data = {
-        "from_phone": os.getenv('phone_from'),
+        "from_phone": phone_from,
         "to_phone": payload.phone,
         "agent_id": agent,
         "metadata": {
