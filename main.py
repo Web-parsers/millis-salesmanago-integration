@@ -15,13 +15,19 @@ load_dotenv()  # take environment variables from .env.
 agents_per_country = {
     'UK': os.getenv('agent_id_UK'),
     'GB': os.getenv('agent_id_UK'),
-    'US': os.getenv('agent_id_US')
+    'US': os.getenv('agent_id_US'),
+    'FR': os.getenv('agent_id_FR'),
+    'DE': os.getenv('agent_id_DE'),
+    'FI': os.getenv('agent_id_FI'),
 }
 
 phone_from_country = {
     'UK': os.getenv('phone_from_UK'),
     'GB': os.getenv('phone_from_UK'),
-    'US': os.getenv('phone_from_US')
+    'US': os.getenv('phone_from_US'),
+    'FR': os.getenv('phone_from_FR'),
+    'DE': os.getenv('phone_from_DE'),
+    'FI': os.getenv('phone_from_FI'),
 }
 
 
@@ -193,14 +199,16 @@ async def api_input(payload: SalesmanagoPayload):
     insert(payload.__dict__, api_name='api_input')
     metadata = get_contact_name(payload.email)
     tags = metadata.get('tags', [])
-    if 'SEOSENSE_US' in tags:
-        agent = agents_per_country['US']
-        phone_from = phone_from_country['US']
-    elif 'SEOSENSE_UK' in tags or 'SEOSENSE_GB' in tags:
-        agent = agents_per_country['UK']
-        phone_from = phone_from_country['UK']
-    else:
-        return {"message": f"No UK and no US, tags: {tags}"}
+
+    agent = None
+    phone_from = None
+    for country in agents_per_country.keys():
+        if f'SEOSENSE_{country}' in tags:
+            agent = agents_per_country[country]
+            phone_from = phone_from_country[country]
+            break
+    if agent is None:
+        return {"message": f"No agent for country, tags: {tags}"}
     millis_data = {
         "from_phone": phone_from,
         "to_phone": payload.phone,
@@ -248,7 +256,7 @@ async def api_input(payload: SalesmanagoPayload):
             )
             response_get_status.raise_for_status()
             call_status = response_get_status.json().get('call_status')
-            if call_status != 'user-ended': # e.g. busy, no_answer
+            if call_status != 'user-ended':  # e.g. busy, no_answer
                 update_tag_salesmanago(payload.email, [potential_failure_tag])
             else:
                 update_tag_salesmanago(payload.email, ['SEOSENSE_TALKED'])
