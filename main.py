@@ -10,6 +10,8 @@ import requests
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
+from utils import repair_phone, round_to_thousands
+
 load_dotenv()  # take environment variables from .env.
 
 agents_per_country = {
@@ -173,9 +175,9 @@ def get_contact_name(contact_email):
         name = data.get('name')
         dct = data.get('properties', {})
         result = {item['name']: item['value'] for item in dct}
-        traffic = result.get('traffic')
-        keywords = result.get('keywords')
-        package = result.get('package')
+        traffic = round_to_thousands(result.get('traffic'))
+        keywords = round_to_thousands(result.get('keywords'))
+        package = round_to_thousands(result.get('package'))
 
         return {
             "Name": name,
@@ -209,9 +211,12 @@ async def api_input(payload: SalesmanagoPayload):
             break
     if agent is None:
         return {"message": f"No agent for country, tags: {tags}"}
+    phone = repair_phone(payload.phone)
+    if phone is None:
+        phone = payload.phone
     millis_data = {
         "from_phone": phone_from,
-        "to_phone": payload.phone,
+        "to_phone": phone,
         "agent_id": agent,
         "metadata": {
             "email": payload.email,
