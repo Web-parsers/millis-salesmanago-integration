@@ -6,7 +6,7 @@ import time
 import traceback
 from typing import Optional
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
 import requests
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -62,8 +62,8 @@ async def read_root():
 # Prefetch Data Webhook (GET request)
 @app.get("/prefetch_data_webhook")
 async def prefetch_data(
-    from_: str,  # 'from' is a reserved keyword in Python, use 'from_' instead
     to: str,
+    from_: str = Query(..., alias="from"),
     session_id: Optional[str] = None,
     agent_id: Optional[str] = None
 ):
@@ -87,11 +87,10 @@ async def prefetch_data(
 
     return {
         "metadata": {
-            "Email": response[0].get('Email'),
-            "Name": response[0].get('Name')
-        } | metadata  # Merging metadata
+                        "Email": response[0].get('Email'),
+                        "Name": response[0].get('Name')
+                    } | metadata  # Merging metadata
     }
-
 
 
 def insert(text, api_name):
