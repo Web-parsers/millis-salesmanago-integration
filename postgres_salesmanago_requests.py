@@ -31,15 +31,12 @@ def get_people_by_phone(phone_number):
         cursor.execute(query, (phone_number,))
         results = cursor.fetchall()
 
-        # Convert the results to JSON
-        json_result = json.dumps(results, default=str)
-
         # Close the connection
         cursor.close()
         conn.close()
 
         # Return JSON result
-        return json_result
+        return results
 
     except Exception as e:
         return json.dumps({"error": str(e)})
