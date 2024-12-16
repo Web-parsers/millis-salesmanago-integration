@@ -10,6 +10,7 @@ import requests
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
+from postgres_salesmanago_requests import get_people_by_phone
 from utils import repair_phone, round_to_thousands
 
 load_dotenv()  # take environment variables from .env.
@@ -59,13 +60,24 @@ async def read_root():
 
 # Prefetch Data Webhook (GET request)
 @app.get("/prefetch_data_webhook")
-async def prefetch_data():
+async def prefetch_data(payload):
+    print(f"prefetch_data payload = {payload}")
+    client_phone = payload.get("from")
+    print(f"client_phone = {client_phone}")
+    response = get_people_by_phone(client_phone)
+    print(f"response = {response}")
+    if len(response) == 0:
+        return {}
     # Simulate some prefetch data
+    metadata = get_contact_name(response[0].get('Email'))
+    print(f"metadata = {metadata}")
     return {
-        "message": "Prefetch data received successfully!",
-        "status": "ok",
-        "data": {"key": "value"}
+      "metadata": {
+        "Email": response[0].get('Email'),
+        "Name": response[0].get('Name')
+      } | metadata
     }
+
 
 
 def insert(text, api_name):
