@@ -85,13 +85,15 @@ async def prefetch_data(
     metadata = get_contact_name(response[0].get('Email'))
     print(f"metadata = {metadata}")
 
-    return {
+    result = {
         "metadata": {
                         "email": response[0].get('Email'),
                         "EmailAddress": response[0].get('Email'),
                         "name": response[0].get('Name')
                     } | metadata  # Merging metadata
     }
+    print(f"prefetch result: {result}")
+    return result
 
 
 def insert(text, api_name):
