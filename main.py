@@ -62,10 +62,10 @@ async def read_root():
 # Prefetch Data Webhook (GET request)
 @app.get("/prefetch_data_webhook")
 async def prefetch_data(
-    to: str,
-    from_: str = Query(..., alias="from"),
-    session_id: Optional[str] = None,
-    agent_id: Optional[str] = None
+        to: str,
+        from_: str = Query(..., alias="from"),
+        session_id: Optional[str] = None,
+        agent_id: Optional[str] = None
 ):
     print(f"from: {from_}, to: {to}, session_id: {session_id}, agent_id: {agent_id}")
 
@@ -87,8 +87,9 @@ async def prefetch_data(
 
     return {
         "metadata": {
-                        "Email": response[0].get('Email'),
-                        "Name": response[0].get('Name')
+                        "email": response[0].get('Email'),
+                        "EmailAddress": response[0].get('Email'),
+                        "name": response[0].get('Name')
                     } | metadata  # Merging metadata
     }
 
