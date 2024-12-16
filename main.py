@@ -155,7 +155,10 @@ async def end_of_call(request: Request):
         tags.append('SEOSENSE_MEETING_FAILED')
     tags.append(f'MILLIS_{call_status.upper()}')
 
-    email = payload.get('metadata', {}).get('email', None)
+    try:
+        email = payload.get('metadata', {}).get('email')
+    except:
+        email = None
     print(f'tags = {tags}, email = {email}')
     update_tag_salesmanago(email, tags)
 
