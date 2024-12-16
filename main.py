@@ -4,6 +4,7 @@ import json
 import os
 import time
 import traceback
+from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException
 import requests
@@ -60,22 +61,35 @@ async def read_root():
 
 # Prefetch Data Webhook (GET request)
 @app.get("/prefetch_data_webhook")
-async def prefetch_data(payload):
-    print(f"prefetch_data payload = {payload}")
-    client_phone = payload.get("from")
+async def prefetch_data(
+    from_: str,  # 'from' is a reserved keyword in Python, use 'from_' instead
+    to: str,
+    session_id: Optional[str] = None,
+    agent_id: Optional[str] = None
+):
+    print(f"from: {from_}, to: {to}, session_id: {session_id}, agent_id: {agent_id}")
+
+    # Extract client phone number
+    client_phone = from_
     print(f"client_phone = {client_phone}")
+
+    # Query the database for the phone number
     response = get_people_by_phone(client_phone)
     print(f"response = {response}")
-    if len(response) == 0:
+
+    # Handle empty response
+    if not response:
         return {}
+
     # Simulate some prefetch data
     metadata = get_contact_name(response[0].get('Email'))
     print(f"metadata = {metadata}")
+
     return {
-      "metadata": {
-        "Email": response[0].get('Email'),
-        "Name": response[0].get('Name')
-      } | metadata
+        "metadata": {
+            "Email": response[0].get('Email'),
+            "Name": response[0].get('Name')
+        } | metadata  # Merging metadata
     }
 
 
