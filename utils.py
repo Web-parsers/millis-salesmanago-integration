@@ -29,12 +29,38 @@ def repair_phone(phone):
 
 
 def round_to_thousands(value):
+    str_value = str(value).strip().lower()
+
+    # Check if ends with 'k'
+    if str_value.endswith('k'):
+        # Remove 'k', parse as float and multiply by 1000
+        num_str = str_value[:-1]
+        num = float(num_str) * 1000
+        # Convert to int and format with commas
+        return f"{int(num):,}"
+
+    # Check if ends with '+'
+    if str_value.endswith('+'):
+        # Remove '+', parse the number, then restore '+'
+        num_str = str_value[:-1]
+        num = float(num_str)
+        # Just format with commas and re-append '+', no rounding
+        if num.is_integer():
+            return f"{int(num):,}+"
+        else:
+            return f"{num:,}+"
+
+    # For regular numbers
     try:
-        # Attempt to convert to float
-        num = float(value)
+        num = float(str_value)
         if num > 1000:
-            return round(num, -3)  # Round to nearest thousand
-        return num
-    except (ValueError, TypeError):
-        # If conversion fails, return the original value
+            # Round to nearest thousand
+            rounded = round(num, -3)
+            return f"{int(rounded):,}"
+        # If 1000 or less, return as is
+        return num if not num.is_integer() else int(num)
+    except ValueError:
+        # If it's not a valid number, return the original value
         return value
+
+

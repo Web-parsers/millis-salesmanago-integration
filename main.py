@@ -210,13 +210,18 @@ def get_contact_name(contact_email):
         keywords = round_to_thousands(result.get('keywords'))
         package = round_to_thousands(result.get('package'))
 
+        clients = round_to_thousands(result.get('clients'))
+        package_short = round_to_thousands(result.get('package_short'))
+
         return {
             "Name": name,
             "CompanyName": data.get('company'),
             "traffic": traffic,
             "keywords": keywords,
             "package": package,
-            "tags": [x.get('tag') for x in data.get('contactTags', [])]
+            "tags": [x.get('tag') for x in data.get('contactTags', [])],
+            "clients": clients,
+            "package_short": package_short
         }
     except requests.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve contact details: {e}")
@@ -283,6 +288,7 @@ async def api_input(payload: SalesmanagoPayload):
         try:
             await asyncio.sleep(60)
             session_id = response.json().get('session_id')
+            update_tag_salesmanago(payload.email, tags=None, call_id=session_id)
             response_get_status = requests.get(
                 f"https://api-west.millis.ai/call-logs/{session_id}",
                 headers={
@@ -308,7 +314,7 @@ async def api_input(payload: SalesmanagoPayload):
     return {"message": "Call initiated successfully."}
 
 
-def update_tag_salesmanago(email, tags):
+def update_tag_salesmanago(email, tags, call_id=None):
     url = "https://app3.salesmanago.pl/api/contact/batchupsertv2"
 
     payload = {
@@ -322,10 +328,19 @@ def update_tag_salesmanago(email, tags):
                 "contact": {
                     "email": email,
                 },
-                "tags": tags
             }
         ],
     }
+
+    if call_id is not None:
+        payload["upsertDetails"][0]["properties"] = {
+            "millis_call_id": call_id
+        }
+
+    if tags is not None:
+        payload["upsertDetails"][0]["properties"] = {
+            "tags": tags
+        }
 
     try:
         # Send the POST request
