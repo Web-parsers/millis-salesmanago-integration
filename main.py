@@ -326,8 +326,8 @@ def update_tag_salesmanago(email, tags, call_id=None):
         "upsertDetails": [
             {
                 "contact": {
-                    "email": email,
-                },
+                    "email": email
+                }
             }
         ],
     }
@@ -338,9 +338,7 @@ def update_tag_salesmanago(email, tags, call_id=None):
         }
 
     if tags is not None:
-        payload["upsertDetails"][0]["properties"] = {
-            "tags": tags
-        }
+        payload["upsertDetails"][0]["tags"] = tags
 
     try:
         # Send the POST request
