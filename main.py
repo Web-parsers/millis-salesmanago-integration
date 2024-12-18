@@ -428,14 +428,14 @@ def check_business_hours_and_wait(phone_number: str, business_hours: str, desire
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/check_business_hours")
-async def check_business_hours(phone, business_hours="10-16", desired_call_time=15):
+async def check_business_hours(phone, business_hours="10-16", desired_call_time="15"):
     """
     API endpoint to check if the current time is within business hours and calculate wait time for a desired call time.
     """
     is_now, wait_seconds = check_business_hours_and_wait(
         phone_number=phone,
         business_hours=business_hours,
-        desired_call_time=desired_call_time,
+        desired_call_time=int(desired_call_time),
     )
     return {
         "is_now": is_now,
