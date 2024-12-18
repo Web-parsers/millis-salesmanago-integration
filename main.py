@@ -14,6 +14,13 @@ from dotenv import load_dotenv
 from postgres_salesmanago_requests import get_people_by_phone
 from utils import repair_phone, round_to_thousands
 
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+import phonenumbers
+from phonenumbers import timezone
+from datetime import datetime, timedelta
+import pytz
+
 load_dotenv()  # take environment variables from .env.
 
 agents_per_country = {
@@ -354,3 +361,83 @@ def update_tag_salesmanago(email, tags, call_id=None):
 
     except requests.exceptions.RequestException as e:
         print("An error occurred:", e)
+
+
+class PhoneNumberRequest(BaseModel):
+    phone: str = Field(..., example="+1234567890")
+    business_hours: str = Field(..., example="10-16")
+    desired_call_time: int = Field(..., example=14, ge=0, le=23)
+
+def get_timezone_from_phone(phone_number: str) -> list:
+    """
+    Takes a mobile phone number and returns the associated timezones.
+    :param phone_number: Phone number in international format (e.g., '+1234567890')
+    :return: A list of timezone names or an error message.
+    """
+    try:
+        # Parse the phone number
+        parsed_number = phonenumbers.parse(phone_number)
+
+        # Validate the phone number
+        if not phonenumbers.is_valid_number(parsed_number):
+            return ["Invalid phone number"]
+
+        # Get timezones for the phone number
+        timezones = timezone.time_zones_for_number(parsed_number)
+
+        return list(timezones)
+
+    except Exception as e:
+        return [f"Error: {str(e)}"]
+
+def check_business_hours_and_wait(phone_number: str, business_hours: str, desired_call_time: int) -> tuple:
+    """
+    Checks if the current time is within business hours and calculates wait time for a desired call time.
+    :param phone_number: Phone number in international format (e.g., '+1234567890')
+    :param business_hours: Business hours in 'start-end' format (e.g., '10-16')
+    :param desired_call_time: Desired hour to call (e.g., 14)
+    :return: Tuple (is_now_business_hours, seconds_to_wait)
+    """
+    try:
+        # Get timezone for the phone number
+        timezones = get_timezone_from_phone(phone_number)
+        if "Invalid phone number" in timezones or "Error" in timezones:
+            raise ValueError("Invalid phone number")
+
+        # Use the first timezone found
+        tz = pytz.timezone(timezones[0])
+        current_time = datetime.now(tz)
+
+        # Parse business hours
+        start_hour, end_hour = map(int, business_hours.split('-'))
+
+        # Check if now is within business hours
+        is_now_business_hours = start_hour <= current_time.hour < end_hour
+
+        # Calculate seconds to wait until the desired time
+        desired_time_today = current_time.replace(hour=desired_call_time, minute=0, second=0, microsecond=0)
+        if current_time >= desired_time_today:
+            # If desired time has passed, calculate for the next day
+            desired_time_today += timedelta(days=1)
+
+        seconds_to_wait = (desired_time_today - current_time).total_seconds()
+
+        return is_now_business_hours, int(seconds_to_wait)
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/check_business_hours/")
+async def check_business_hours(request: PhoneNumberRequest):
+    """
+    API endpoint to check if the current time is within business hours and calculate wait time for a desired call time.
+    """
+    is_now, wait_seconds = check_business_hours_and_wait(
+        phone_number=request.phone,
+        business_hours=request.business_hours,
+        desired_call_time=request.desired_call_time,
+    )
+    return {
+        "is_now": is_now,
+        "wait_seconds": wait_seconds
+    }
