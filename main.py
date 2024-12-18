@@ -427,7 +427,7 @@ def check_business_hours_and_wait(phone_number: str, business_hours: str, desire
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/check_business_hours/")
+@app.post("/check_business_hours")
 async def check_business_hours(request: PhoneNumberRequest):
     """
     API endpoint to check if the current time is within business hours and calculate wait time for a desired call time.
