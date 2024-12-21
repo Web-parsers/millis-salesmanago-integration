@@ -1,62 +1,64 @@
 name: Millis SalesManago Integration CI/CD
 on:
- push:
-   branches:
-     - main
+  push:
+    branches:
+      - main
 env:
- BRANCH: main
- APP_NAME: millis-salesmanago-integration
+  BRANCH: main
+  APP_NAME: millis-salesmanago-integration
+
 jobs:
- build:
-   runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
     steps:
-     - name: Checkout repository
-       uses: actions/checkout@v3
-       with:
-         ref: ${{ env.BRANCH }}
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ env.BRANCH }}
       - name: Set up Docker Buildx
-       uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v2
       - name: Log in to GitHub Container Registry
-       run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+        run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
       - name: Build Docker image
-       run: |
-         docker build -t ghcr.io/web-parsers/${{ env.APP_NAME }}:${{ env.BRANCH }} .
+        run: |
+          docker build -t ghcr.io/web-parsers/${{ env.APP_NAME }}:${{ env.BRANCH }} .
       - name: Push Docker image to GitHub Container Registry
-       run: |
-         docker push ghcr.io/web-parsers/${{ env.APP_NAME }}:${{ env.BRANCH }}
+        run: |
+          docker push ghcr.io/web-parsers/${{ env.APP_NAME }}:${{ env.BRANCH }}
+
   deploy:
-   needs: build
-   runs-on: ubuntu-latest
+    needs: build
+    runs-on: ubuntu-latest
     steps:
-     - name: Deploy to server via SSH
-       uses: appleboy/ssh-action@v0.1.8
-       with:
-         host: ${{ secrets.MAIN_SERVER_HOST }}
-         username: ${{ secrets.MAIN_SERVER_USER }}
-         key: ${{ secrets.MAIN_SERVER_SSH_KEY }}
-         port: ${{ secrets.MAIN_SERVER_PORT }}
-         script: |
-           set -e
-           trap 'docker logout ghcr.io' EXIT
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.MAIN_SERVER_HOST }}
+          username: ${{ secrets.MAIN_SERVER_USER }}
+          key: ${{ secrets.MAIN_SERVER_SSH_KEY }}
+          port: ${{ secrets.MAIN_SERVER_PORT }}
+          script: |
+            set -e
+            trap 'docker logout ghcr.io' EXIT
             # Login to GitHub Container Registry
-           echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+            echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
             # Ensure the directory exists
-           if [ ! -d "./${{ env.APP_NAME }}-${{ env.BRANCH }}" ]; then
-             echo "Directory does not exist. Creating directory and cloning repository."
-             mkdir -p ./${{ env.APP_NAME }}-${{ env.BRANCH }}
-             cd ./${{ env.APP_NAME }}-${{ env.BRANCH }}
-             git clone --branch ${{ env.BRANCH }} https://${{ secrets.GHCR_TOKEN }}@github.com/Web-parsers/${{ env.APP_NAME }}.git .
-           else
-             echo "Directory exists. Pulling latest changes."
-             cd ./${{ env.APP_NAME }}-${{ env.BRANCH }}
-             git fetch
-             git checkout ${{ env.BRANCH }}
-             git pull
-           fi
+            if [ ! -d "./${{ env.APP_NAME }}-${{ env.BRANCH }}" ]; then
+              echo "Directory does not exist. Creating directory and cloning repository."
+              mkdir -p ./${{ env.APP_NAME }}-${{ env.BRANCH }}
+              cd ./${{ env.APP_NAME }}-${{ env.BRANCH }}
+              git clone --branch ${{ env.BRANCH }} https://${{ secrets.GHCR_TOKEN }}@github.com/Web-parsers/${{ env.APP_NAME }}.git .
+            else
+              echo "Directory exists. Pulling latest changes."
+              cd ./${{ env.APP_NAME }}-${{ env.BRANCH }}
+              git fetch
+              git checkout ${{ env.BRANCH }}
+              git pull
+            fi
             # Pull the latest Docker image
-           docker compose -f docker-compose.yml pull
+            docker compose -f docker-compose.yml pull
             # Restart the Docker containers
-           docker compose -f docker-compose.yml down
-           docker compose -f docker-compose.yml up -d --build
+            docker compose -f docker-compose.yml down
+            docker compose -f docker-compose.yml up -d --build
             # Clean up unused Docker images
-           docker image prune -f
+            docker image prune -f
