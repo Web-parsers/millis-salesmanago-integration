@@ -1,0 +1,16 @@
+services:
+  millis:
+    container_name: millis
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8002:8080
+    env_file:
+      - .env
+    command: >
+      sh -c "uvicorn main:app --host 0.0.0.0 --port 8080"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
