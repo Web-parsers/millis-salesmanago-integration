@@ -305,7 +305,7 @@ async def api_input(payload: SalesmanagoPayload):
             )
             response_get_status.raise_for_status()
             call_status = response_get_status.json().get('call_status')
-            if call_status != 'user-ended':  # e.g. busy, no_answer
+            if call_status not in ['user-ended', 'in-progress']:  # e.g. busy, no_answer
                 update_tag_salesmanago(payload.email, [potential_failure_tag])
             else:
                 update_tag_salesmanago(payload.email, ['SEOSENSE_TALKED'])
