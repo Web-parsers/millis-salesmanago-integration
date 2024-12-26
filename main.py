@@ -164,6 +164,10 @@ async def end_of_call(request: Request):
         tags.append('SEOSENSE_MEETING_FAILED')
     tags.append(f'MILLIS_{call_status.upper()}')
 
+    print(f"payload.get('call_analysis') = {payload.get('call_analysis')}")
+    if payload.get('call_analysis', {}).get('opt_out_detection'):
+        tags.append('MILLIS_DNC')
+
     try:
         email = payload.get('metadata', {}).get('email')
     except:
