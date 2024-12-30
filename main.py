@@ -54,8 +54,12 @@ class SalesmanagoPayload(BaseModel):
 
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
+
+instrumentator = Instrumentator()
+instrumentator.instrument(app).expose(app)
 
 # Allow specific domains
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
